@@ -5,7 +5,7 @@ import openmeteo_requests
 import requests_cache
 import pandas as pd
 from retry_requests import retry
-from pymongo import MongoClient
+from pymongo import MongoClient, GEOSPHERE
 def getWeatherReportForLocationsAndDate(locations,date):
     pass
 
@@ -16,9 +16,13 @@ def predictWeather():
     pass
 
 def getDataFromAroundthePoint(location):
-    lat = location['lat']
-    lng = location['lng']
+    lat = float(location['lat'])
+    lng = float(location['lng'])
 
+    client = MongoClient("mongodb://localhost:27017")
+    db = client.licentatest
+
+    client.close()
 
 
 def getLastWeatherReportForLocation(location):
@@ -63,6 +67,7 @@ def getLastWeatherReportForLocation(location):
         freq=pd.Timedelta(seconds=hourly.Interval()),
         inclusive="left"
     )}
+
     hourly_data["temperature_2m"] = hourly_temperature_2m
     hourly_data["relative_humidity_2m"] = hourly_relative_humidity_2m
     hourly_data["precipitation"] = hourly_precipitation
@@ -71,6 +76,8 @@ def getLastWeatherReportForLocation(location):
     hourly_data["snowfall"] = hourly_snowfall
     hourly_data["weather_code"] = hourly_weather_code
     hourly_data["surface_pressure"] = hourly_surface_pressure
+    hourly_data["lat"] = location['lat']
+    hourly_data["lng"] = location['lng']
 
     hourly_dataframe = pd.DataFrame(data=hourly_data)
     json_hourly_dataframe = hourly_dataframe.to_dict(orient="records")
@@ -90,8 +97,10 @@ def getLastWeatherReportForLocation(location):
         db.weather.insert_one(el)
         print("Inserted")
 
-    for el in db.weather.find():
-        print(el)
+   # for el in db.weather.find():
+   #     print(el)
     client.close()
+    return json_hourly_dataframe
 
-getLastWeatherReportForLocation({'lat':'46.77','lng':'23.59'})
+#getLastWeatherReportForLocation({'lat':'46.77','lng':'23.59'})
+getDataFromAroundthePoint({'lat':'22','lng':'44'})
