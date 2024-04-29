@@ -30,13 +30,13 @@ def getLastWeatherReportForLocation(location):
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
     openmeteo = openmeteo_requests.Client(session=retry_session)
 
-    current_date = datetime.date.today()
+    current_date = datetime.date.today()-datetime.timedelta(days=1)
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": location['lat'],
         "longitude": location['lng'],
-        "hourly": ["temperature_2m", "relative_humidity_2m", "precipitation", "rain", "showers", "snowfall",
-                   "weather_code", "surface_pressure"],
+        "hourly": ["temperature_2m", "cloud_cover", "precipitation",
+                   "weather_code"],
         "timezone": "GMT",
         "start_date": str(current_date),
         "end_date": str(current_date)
@@ -53,13 +53,10 @@ def getLastWeatherReportForLocation(location):
     # Process hourly data. The order of variables needs to be the same as requested.
     hourly = response.Hourly()
     hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-    hourly_relative_humidity_2m = hourly.Variables(1).ValuesAsNumpy()
+    hourly_cloud_cover = hourly.Variables(1).ValuesAsNumpy()
     hourly_precipitation = hourly.Variables(2).ValuesAsNumpy()
-    hourly_rain = hourly.Variables(3).ValuesAsNumpy()
-    hourly_showers = hourly.Variables(4).ValuesAsNumpy()
-    hourly_snowfall = hourly.Variables(5).ValuesAsNumpy()
-    hourly_weather_code = hourly.Variables(6).ValuesAsNumpy()
-    hourly_surface_pressure = hourly.Variables(7).ValuesAsNumpy()
+    hourly_weather_code = hourly.Variables(3).ValuesAsNumpy()
+
 
     hourly_data = {"date": pd.date_range(
         start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
@@ -69,15 +66,11 @@ def getLastWeatherReportForLocation(location):
     )}
 
     hourly_data["temperature_2m"] = hourly_temperature_2m
-    hourly_data["relative_humidity_2m"] = hourly_relative_humidity_2m
+    hourly_data["cloud_cover"] = hourly_cloud_cover
     hourly_data["precipitation"] = hourly_precipitation
-    hourly_data["rain"] = hourly_rain
-    hourly_data["showers"] = hourly_showers
-    hourly_data["snowfall"] = hourly_snowfall
     hourly_data["weather_code"] = hourly_weather_code
-    hourly_data["surface_pressure"] = hourly_surface_pressure
-    hourly_data["lat"] = location['lat']
-    hourly_data["lng"] = location['lng']
+
+
 
     hourly_dataframe = pd.DataFrame(data=hourly_data)
     json_hourly_dataframe = hourly_dataframe.to_dict(orient="records")
@@ -103,4 +96,4 @@ def getLastWeatherReportForLocation(location):
     return json_hourly_dataframe
 
 #getLastWeatherReportForLocation({'lat':'46.77','lng':'23.59'})
-getDataFromAroundthePoint({'lat':'22','lng':'44'})
+#getDataFromAroundthePoint({'lat':'22','lng':'44'})

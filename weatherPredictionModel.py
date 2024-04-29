@@ -2,105 +2,90 @@ import datetime
 import matplotlib.pyplot as matplot
 
 from pymongo import MongoClient
-from keras.src.models import Sequential
-from keras.src.layers import Dense, LSTM
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Ridge
 import numpy as np
-import tensorflow as tf
 import pickle
-from dateutil.parser import parse
 import random
 import functionsWrappup
 from sklearn.metrics import mean_squared_error, r2_score
-def setup_model(nr_steps, nr_features):
-    polynomial_features = PolynomialFeatures(degree=11)
+'''
+Function used to set up the model.
+:return: model
+'''
+def setup_model():
     model = Ridge(alpha=0.1)
     return model
+
+'''
+Function used to convert the recived data from the db into training data.
+:param data: list of documents from the db containing the weather data
+:return: a converted list with entries representing the weather data as list
+'''
 def prepare_data(data):
     prepared_data = []
     for el in data:
         row = []
         row.append(float(el['date'].timestamp()))
-        row.append(float(el['lat']))
-        row.append(float(el['lng']))
+        # row.append(float(el['lat']))
+        # row.append(float(el['lng']))
         row.append(float(el['temperature_2m']))
-        row.append(float(el['relative_humidity_2m']))
+        row.append(float(el['cloud_cover']))
         row.append(float(el['precipitation']))
-        row.append(float(el['rain']))
-        row.append(float(el['showers']))
-        row.append(float(el['snowfall']))
+        #row.append(float(el['rain']))
+        #row.append(float(el['showers']))
+        #row.append(float(el['snowfall']))
         row.append(float(el['weather_code']))
-        row.append(float(el['surface_pressure']))
+        #row.append(float(el['surface_pressure']))
         prepared_data.append(row)
     return prepared_data
-def train(data):
-    data = data[:10000]
-    data.sort(reverse=False, key=lambda x: x[0])
-    i = 1
-    polynomial_features = PolynomialFeatures(degree=2)
-    model = Ridge(alpha=0.5,positive=True)
-    #current_data = []
-    #for el in data:
-    #    if i%64==0 or i==len(data)-1:
+'''
+Function used for the model training, 
+the preprocesed data is split into training samples and validations semples and than feed the model
+also through the sample_size param it will be training with only that many samples
+:param data: list of preprocessed data
+:param sample_size: the number of samples used for training
+:return: trained model
+'''
+def train(data, sample_size = 1024):
+    model = Ridge(alpha=0.1,positive=True, solver='lbfgs')
     x_train = []
     y_train = []
     x_validate = []
     y_validate = []
-    for el in data:
+    i = 0
+    n = len(data)
+    while i<n-1:
         if random.random() < 0.8:
-            x_train.append(el)
-            y_train.append(el)
+            #x_train.append(data[i][:1])
+            #y_train.append(data[i+1][1:])
+            x_train.append(data[i])
+            y_train.append(data[i+1][1:])
         else:
-            x_validate.append(el)
-            y_validate.append(el)
-    #x_train = np.array(x_tarin)
-    #y_train = np.array(y_train
-    #x_validate = np.array(x_validate)
-    #y_validate = np.array(y_validate
-    #x_poly = polynomial_features.fit_transform(x_train)
-    #x_evaluate_poly = polynomial_features.fit_transform(x_validate)
-    # Fit the polynomial regression model
+            x_validate.append(data[i])
+            y_validate.append(data[i+1][1:])
+            #x_validate.append(data[i][:1])
+            #y_validate.append(data[i+1][1:])
+        i+=2
+
     print("fiitinf model")
     print("====================================")
     model.fit(x_train, y_train)
     predictions = model.predict(x_validate)
     mse = mean_squared_error(y_validate, predictions)
     r2 = r2_score(y_validate, predictions)
-    print(f"Batch: MSE = {mse}, R^2 = {r2}")
-    #current_data = []
-    #    else :
-    #        current_data.append(el)
-    #    i+=1
+    print(f" MSE = {mse}, R^2 = {r2}")
+
     print("done")
-    # print(x_train.shape)
-    # print(y_train.shape)
-    # print(x_validate.shape)
-    # print(y_validate.shape)
-    # x_train = x_train.reshape((x_train.shape[0], 1, 8))
-    # y_train = y_train.reshape((y_train.shape[0], 1, 8))
-    # x_validate = x_validate.reshape((x_validate.shape[0], 1, 8))
-    # y_validate = y_validate.reshape((y_validate.shape[0], 1, 8))
-    # model.fit(x_train, y_train, epochs=100, batch_size=1024, verbose=1, shuffle=False)
-    # model.evaluate(x_validate, y_validate, verbose=1)
-
-    # x_train = x_train.reshape((x_train.shape[0], 1, num_features))
-    # #y_train = y_train.reshape((y_train.shape[0], 1, y_train.shape[1]))
-    # x_validate = x_validate.reshape((x_validate.shape[0], 1, num_features))
-    # train_dataset = tf.data.Dataset.from_tensor_slices((x_train, x_validate))
-    # print(len(train_dataset))
-    # nb_train_steps = math.floor(len(train_dataset) / 32)
-    # #Repeat the dataset for a number of epochs
-    # #train_dataset = train_dataset.batch(32).repeat(100)
-    # print(len(train_dataset))
-
-
-    #print(nb_train_steps)
-    #model.fit(x_train,y_train, verbose = 1,validation_data=(x_validate, y_validate), shuffle=False)
 
     return model
+'''
+Function used to predict the weather for the next day
+:param model: the trained model
+:return : list containing the predicted weather
+'''
 def predict_weather(model):
-    current_data = functionsWrappup.getLastWeatherReportForLocation({'lat':46.77, 'lng':23.59})[:1]
+    current_data = functionsWrappup.getLastWeatherReportForLocation({'lat':46.77, 'lng':23.59})
     print(current_data)
     print("seklected hours nr " + str(len(current_data)))
     prediction_data = []
@@ -108,19 +93,18 @@ def predict_weather(model):
     for el in current_data:
         row = []
         row.append(float(date_of_tommorow.timestamp()))
-        row.append(float(el['lat']))
-        row.append(float(el['lng']))
+        # row.append(float(el['lat']))
+        # row.append(float(el['lng']))
         row.append(float(el['temperature_2m']))
-        row.append(float(el['relative_humidity_2m']))
+        row.append(float(el['cloud_cover']))
         row.append(float(el['precipitation']))
-        row.append(float(el['rain']))
-        row.append(float(el['showers']))
-        row.append(float(el['snowfall']))
+        # row.append(float(el['rain']))
+        # row.append(float(el['showers']))
+        # row.append(float(el['snowfall']))
         row.append(float(el['weather_code']))
-        row.append(float(el['surface_pressure']))
+        # row.append(float(el['surface_pressure']))
         prediction_data.append(row)
     print("data used for prediction")
-    polynomial_features = PolynomialFeatures(degree=2)
     print(prediction_data)
     prediction_data = np.array(prediction_data)
     print("predicting smr ")
@@ -132,55 +116,96 @@ def predict_weather(model):
     print("predicted weather")
     for el in prediction:
         print("predicted weather : ==========================")
-        #for a in el:
-        #    print(round(a,5))
-        print(el[3])
+        for a in el:
+            print(round(a,5))
+    temp = []
+    time = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]
+    for el in prediction:
+        temp.append(el[0])
+    matplot.plot(time, temp, label='Predicted temperature')
+    matplot.legend()
+    matplot.show()
+'''
+Function used to save the model as a pkl file.
+:param model: the model to be saved
+:param model_name: the name of the file
+'''
 def save_model(model,model_name):
     with open(model_name, 'wb') as file:
         pickle.dump(model, file)
-
+'''
+Function used to load the model from the pkl file.
+:param model_name: the name of the file
+:return: the loaded model
+'''
 def load_model(model_name):
     with open(model_name, 'rb') as file:
         model = pickle.load(file)
     return model
 
+'''
+Function used to get the weather data from the db
+:return: list of documents containing the weather data
+'''
 def get_weather_data():
     client = MongoClient("mongodb://localhost:27017")
     db = client.licentatest
     weather = []
-    for el in db.weather.find():
-        weather.append(el)
+    i = 0
+    for el in db.weather_validation.find():
+        if 'cloud_cover' in el.keys():
+            weather.append(el)
+        # if i == 30000:
+        #     break
+        # i+=1
     client.close()
     print("colected a number of lines " + str(len(weather)))
     return weather
 
-def validate_model(model,validation_data=[]):
-    data = get_weather_data()[:1024]
+'''
+Function used to validate the model by plotting the predicted weather against the actual weather
+:param model: the trained model
+:param validation_data: list of documents containing the weather data used for validation
+'''
+def validate_model(model,data):
+    time = []
+    for el in data[:len(data)//2]:
+        time.append(float(el['date'].timestamp()))
+
     prepared_data = prepare_data(data)
-    prepared_data.sort(reverse=True,key=lambda x: x[0])
     x_validate = []
     y_validate = []
-    polynomial_features = PolynomialFeatures(degree=8)
-    for el in prepared_data:
-        x_validate.append(el)
-        y_validate.append(el)
-    x_validate = np.array(x_validate)
-    y_validate = np.array(y_validate)
-    x_validate = polynomial_features.fit_transform(x_validate)
-    y_plot = []
-    x_plot = []
-    y_time = []
-    y_temp = []
-    for el in y_validate:
-        print(el[0])
-        y_plot.append(el[0])
-    prediction = model.predict(x_validate)
-    for el in prediction:
-        print(el[0])
-        x_plot.append(el[0])
-    matplot.plot(y_plot,x_plot)
-    matplot.show()
+    i = 0
+    n = len(prepared_data)
+    while i < n-1:
+        x_validate.append(prepared_data[i])
+        y_validate.append(prepared_data[i+1][1:])
+        i+=2
+    # x_validate = np.array(x_validate)
+    # y_validate = np.array(y_validate)
 
+    prediction = model.predict(x_validate)
+    print("Mse score : " + str(mean_squared_error(y_validate, prediction)))
+    print("R2 score : " + str(r2_score(y_validate, prediction)))
+    predicted_temp = []
+    actual_temp = []
+    for el in y_validate :
+        actual_temp.append(el[0])
+    for el in prediction:
+        predicted_temp.append(el[0])
+    prediction2 = []
+    for el in prediction:
+        row = []
+        for a in el:
+            row.append(round(a,5))
+        prediction2.append(row)
+    for i in range(0,len(prediction2)):
+        print(prediction2[i])
+        print(y_validate[i])
+    matplot.plot(time, actual_temp, label='Actual temperature')
+    matplot.plot(time, predicted_temp, label='Predicted temperature')
+    matplot.legend()
+    matplot.show()
 
 def main():
     print("Starting...")
@@ -203,16 +228,17 @@ def main():
     print("andra")
 
 def test(ok):
-    model_name = 'model_v6.pkl'
+    model_name = 'model_v13.pkl'
     if ok ==1:
         #model = setup_model(8,8)
         data = get_weather_data()
         cox = prepare_data(data)
-        model = train(cox)
+        model = train(cox,)
         save_model(model,model_name)
     else :
         model = load_model(model_name)
-        predict_weather(model)
-        # validate_model(model)
-test(1)
+        #predict_weather(model)
+        data = get_weather_data()[:1024]
+        validate_model(model,data)
+#test(1)
 test(0)
