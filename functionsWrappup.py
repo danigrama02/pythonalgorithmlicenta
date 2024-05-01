@@ -57,7 +57,6 @@ def getLastWeatherReportForLocation(location):
     hourly_precipitation = hourly.Variables(2).ValuesAsNumpy()
     hourly_weather_code = hourly.Variables(3).ValuesAsNumpy()
 
-
     hourly_data = {"date": pd.date_range(
         start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
         end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
@@ -70,29 +69,9 @@ def getLastWeatherReportForLocation(location):
     hourly_data["precipitation"] = hourly_precipitation
     hourly_data["weather_code"] = hourly_weather_code
 
-
-
     hourly_dataframe = pd.DataFrame(data=hourly_data)
     json_hourly_dataframe = hourly_dataframe.to_dict(orient="records")
 
-    print(json_hourly_dataframe)
-
-    client = MongoClient("mongodb://localhost:27017")
-    db = client.licentatest
-    try:
-        db.command("serverStatus")
-    except Exception as e:
-        print(e)
-    else:
-        print("You are connected!")
-
-    for el in json_hourly_dataframe:
-        db.weather.insert_one(el)
-        print("Inserted")
-
-   # for el in db.weather.find():
-   #     print(el)
-    client.close()
     return json_hourly_dataframe
 
 #getLastWeatherReportForLocation({'lat':'46.77','lng':'23.59'})
